@@ -7,15 +7,17 @@ const app = express()
 
 app.get('/', (req, res) => {
     res.send('ok')
-})
+});
 
 const server = createServer(app)
 
-function onSignal(): Promise<any> {
-    console.log('server is starting cleanup')
-    return Promise.all([
-       null
-    ]);
+function onSignal(cb: () => any):  () => Promise<any>{
+    console.log('server is starting cleanup');
+    return function (): Promise<any> {
+        return Promise.all([
+            cb()
+        ]);
+    }
 }
 
 async function onHealthCheck() {
@@ -23,11 +25,11 @@ async function onHealthCheck() {
     // resolves, if health, rejects if not
 }
 
-export function startServer() {
+export function startServer(cb: () => any) {
     createTerminus(server, {
         signal: 'SIGINT',
         healthChecks: { '/healthcheck': onHealthCheck },
-        onSignal,
+        onSignal: onSignal(cb),
     });
 
     server.listen(3000)

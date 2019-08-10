@@ -1,4 +1,4 @@
-import { execCheck } from './exec';
+import { execZmonScript } from './exec';
 
 function mockHttp() {
     return {response: true};
@@ -24,7 +24,7 @@ describe('Worker', () => {
         `;
         const ctx = {};
 
-        const res = execCheck(ctx, check, entity);
+        const res = execZmonScript(ctx, check, {entity});
         expect(res).toEqual('kube_pod');
     });
 
@@ -36,8 +36,9 @@ describe('Worker', () => {
         `;
         let res;
         let err;
+
         try {
-            res = execCheck({}, check, entity);
+            res = execZmonScript({}, check, {entity});
         } catch (e) {
             err = e;
         }
@@ -61,13 +62,13 @@ describe('Worker', () => {
         `;
         const ctx = {};
 
-        const res = execCheck(ctx, check, entity);
+        const res = execZmonScript(ctx, check, {entity});
         expect(res).toEqual({type: entity.type, team: entity.team});
     });
 
     it('should make an http call', () => {
         const ctx = {http: mockHttp}
-        const res = execCheck(ctx, check, entity);
+        const res = execZmonScript(ctx, check, {entity});
         expect(res).toEqual({response: true});
     });
 
@@ -82,7 +83,7 @@ describe('Worker', () => {
         let err;
 
         try {
-            res = execCheck(ctx, check, entity);
+            res = execZmonScript(ctx, check, {entity});
         } catch (e) {
             err = e;
         }
@@ -95,7 +96,7 @@ describe('Worker', () => {
         const ctx = {}
         let res;
         try {
-            res = execCheck(ctx, check, entity);
+            res = execZmonScript(ctx, check, {entity});
         } catch (e) {}
 
         expect(res).toBeUndefined();
