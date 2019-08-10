@@ -49,6 +49,7 @@ export default class ZmonWorker {
                     value: alertRes,
                     td,
                 };
+                console.log(alertObj);
                 if (!!alertRes) {
                     this.storeAlertResult(alert.id, entity.id, JSON.stringify(alertObj));
                     console.log(`alert ${alert.id} triggered on entity ${entity.id}`);
@@ -66,10 +67,9 @@ export default class ZmonWorker {
     }
 
     private executeZmonTask(checkScript: string, checkId: string, entity: any): any {
-
         const {td, result} = execZmonScript(execCtx, checkScript, {entity});
-        return result;
 
+        return result;
     }
 
     private checkAndNotify(req: any) {
