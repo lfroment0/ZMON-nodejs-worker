@@ -1,38 +1,47 @@
-import {createServer} from 'http';
-import express = require('express')
-import terminus = require('@godaddy/terminus')
-import { createTerminus } from '@godaddy/terminus';
+import { createServer } from 'http';
+import { createTerminus, TerminusOptions } from '@godaddy/terminus';
+import { Express } from 'express';
+import express = require('express');
+import { RedisService } from '../services/redis-service';
 
-const app = express()
+export default class ApiServer {
+    app: Express;
 
-app.get('/', (req, res) => {
-    res.send('ok')
-});
+    constructor(private redisService: RedisService) {
+        this.app = express();
+        this.setupRoutes();
+    }
 
-const server = createServer(app)
+    startServer() {
+        const server = createServer(this.app);
+        const opt: TerminusOptions = {
+            signal: 'SIGINT',
+            healthChecks: {'/healthcheck': this.onHealthCheck},
+            onSignal: this.onSignal,
+        };
 
-function onSignal(cb: () => any):  () => Promise<any>{
-    console.log('server is starting cleanup');
-    return function (): Promise<any> {
+        createTerminus(server, opt);
+        server.listen(3000);
+    }
+
+
+    private setupRoutes() {
+        this.app.get('/', (req, res) => {
+            res.send('ok');
+        });
+    }
+
+    private onSignal() {
+        console.log('server is starting cleanup');
         return Promise.all([
-            cb()
+            this.redisService.terminate()
+        ]);
+    }
+
+    private onHealthCheck(): Promise<any> {
+        console.log('checking worker health');
+        return Promise.all([
+            this.redisService.checkHealth()
         ]);
     }
 }
-
-async function onHealthCheck() {
-    // checks if the system is healthy, like the db connection is live
-    // resolves, if health, rejects if not
-}
-
-export function startServer(cb: () => any) {
-    createTerminus(server, {
-        signal: 'SIGINT',
-        healthChecks: { '/healthcheck': onHealthCheck },
-        onSignal: onSignal(cb),
-    });
-
-    server.listen(3000)
-}
-
-

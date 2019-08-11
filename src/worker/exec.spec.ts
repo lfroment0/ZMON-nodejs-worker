@@ -8,7 +8,7 @@ describe('Worker', () => {
     const entity: any = {type: 'kube_pod'};
     const check: string = `
         function check() {
-            return http("http://cool.website.com")
+            return plugin("http://cool.website.com")
         }
     `;
 
@@ -24,8 +24,8 @@ describe('Worker', () => {
         `;
         const ctx = {};
 
-        const res = execZmonScript(ctx, check, {entity});
-        expect(res).toEqual('kube_pod');
+        const { result } = execZmonScript(ctx, check, {entity});
+        expect(result).toEqual('kube_pod');
     });
 
     it('should fail executing the check because it is trying to access fields from an undefined object', () => {
@@ -62,14 +62,14 @@ describe('Worker', () => {
         `;
         const ctx = {};
 
-        const res = execZmonScript(ctx, check, {entity});
-        expect(res).toEqual({type: entity.type, team: entity.team});
+        const { result } = execZmonScript(ctx, check, {entity});
+        expect(result).toEqual({type: entity.type, team: entity.team});
     });
 
     it('should make an http call', () => {
-        const ctx = {http: mockHttp}
-        const res = execZmonScript(ctx, check, {entity});
-        expect(res).toEqual({response: true});
+        const ctx = {plugin: mockHttp}
+        const { result } = execZmonScript(ctx, check, {entity});
+        expect(result).toEqual({response: true});
     });
 
     it('should fail executing the check because eval should not be used', () => {

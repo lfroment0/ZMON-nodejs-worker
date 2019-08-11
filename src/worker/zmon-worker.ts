@@ -4,13 +4,13 @@ import { promisify } from 'util';
 
 import execCtx from '../exec-ctx/ctx';
 import { execZmonScript } from './exec';
+import { hostname } from "os";
+import { RedisService } from '../services/redis-service';
 
 
 export default class ZmonWorker {
-    private queueConn: RedisClient;
     private execCtx: Context;
-    private brpopAsync: Function;
-    private queueName: string;
+    private workerName: string;
 
     private tasks = {
         'check_and_notify': this.checkAndNotify,
@@ -18,11 +18,16 @@ export default class ZmonWorker {
         // 'cleanup': cleanup,
     };
 
-    constructor(client: RedisClient, queueName: string) {
-        this.queueConn = client;
+    constructor(private redisService: RedisService, private queueName: string) {
         this.execCtx = execCtx;
-        this.brpopAsync = promisify(client.brpop).bind(client);
+
         this.queueName = queueName;
+        this.workerName = `plocal.${hostname()}`;
+        this.registerWorker();
+    }
+
+    private registerWorker() {
+        this.redisService.registerWorker(this.workerName)
     }
 
     async startWorker() {
@@ -30,40 +35,44 @@ export default class ZmonWorker {
         let i = 0;
         while (true) {
             const res = await this.consumeQueue();
-            const [queueName, msg] = res;
+            const [ _, msg ] = res;
             const parsedMsg = JSON.parse(msg);
             const {check_id, entity, command} = parsedMsg.body.args[0];
             const alertList = parsedMsg.body.args[1];
+
             const checkResult = this.executeZmonTask(command, check_id, entity);
+
             this.storeCheckResult(check_id, entity.id, JSON.stringify(checkResult));
+
             alertList.forEach((alert: any) => {
-                const startTime = Date.now();
-                const {td, result: alertRes} = execZmonScript(this.execCtx, alert.condition, {value: checkResult});
-                const alertObj = {
-                    exc: 1,
-                    downtimes: [],
-                    captures: {},
-                    start_time: startTime,
-                    worker: 'nodejs-worker',
-                    ts: Date.now(),
-                    value: alertRes,
-                    td,
-                };
-                console.log(alertObj);
-                if (!!alertRes) {
-                    this.storeAlertResult(alert.id, entity.id, JSON.stringify(alertObj));
-                    console.log(`alert ${alert.id} triggered on entity ${entity.id}`);
-                } else {
-                    this.deleteAlertResult(alert.id, entity.id);
-                }
+                this.handleAlerts(alert, checkResult, entity);
             });
         }
     }
 
+    private handleAlerts(alert: any, checkResult: any, entity: any) {
+        const startTime = Date.now();
+        const {td, result: alertRes} = execZmonScript(this.execCtx, alert.condition, {value: checkResult});
+        const alertObj = {
+            exc: 1,
+            downtimes: [],
+            captures: {},
+            start_time: startTime,
+            worker: 'nodejs-worker',
+            ts: Date.now(),
+            value: alertRes,
+            td,
+        };
+        if (!!alertRes) {
+            this.storeAlertResult(alert.id, entity.id, JSON.stringify(alertObj));
+            console.log(`alert ${alert.id} triggered on entity ${entity.id}`);
+        } else {
+            this.deleteAlertResult(alert.id, entity.id);
+        }
+    }
+
     private async consumeQueue() {
-        const checkId = '';
-        const entityId = '';
-        return await this.brpopAsync(this.queueName, 0);
+        return await this.redisService.getTask(this.queueName);
     }
 
     private executeZmonTask(checkScript: string, checkId: string, entity: any): any {
@@ -82,21 +91,21 @@ export default class ZmonWorker {
         // execZmonScript(this.execCtx, script, entity)
     }
 
-    private storeCheckResult(checkId: number, entityId: string, res: string) {
+    private storeCheckResult(checkId: number, entityId: string, value: string) {
         const key = `zmon:checks:${checkId}:${entityId}`;
-        this.queueConn.lpush(key, res, console.log);
-        this.queueConn.ltrim(key, 0, 20 - 1);
+
+        this.redisService.storeCheckResult(key, value);
     }
 
     private storeAlertResult(alertID: number, entityID: string, value: string) {
         const storageName = `zmon:alerts:${alertID}:${entityID}`;
 
-        this.queueConn.set(storageName, value, console.log);
+        this.redisService.setAlert(storageName, value);
     }
 
     private deleteAlertResult(alertID: number, entityID: string) {
         const storageName = `zmon:alerts:${alertID}:${entityID}`;
 
-        this.queueConn.del(storageName, console.log);
+        this.redisService.deleteAlert(storageName);
     }
 }
