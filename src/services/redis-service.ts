@@ -52,7 +52,7 @@ export class RedisService {
     }
 
     async getTask(queueName: string) {
-        return await this.brpopAsync(queueName, 0);
+        return this.brpopAsync(queueName, 0);
     }
 
     deleteAlert(alertKey: string) {

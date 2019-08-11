@@ -1,14 +1,16 @@
+import { hostname } from 'os';
 import { RedisClient } from 'redis';
 import { Context } from 'vm';
 import { promisify } from 'util';
 
-import execCtx from '../exec-ctx/ctx';
 import { execZmonScript } from './exec';
-import { hostname } from "os";
+import execCtx from '../exec-ctx/ctx';
 import { RedisService } from '../services/redis-service';
 
 
 export default class ZmonWorker {
+    executedChecks = 0;
+
     private execCtx: Context;
     private workerName: string;
 
@@ -27,27 +29,32 @@ export default class ZmonWorker {
     }
 
     private registerWorker() {
-        this.redisService.registerWorker(this.workerName)
+        this.redisService.registerWorker(this.workerName);
     }
 
     async startWorker() {
         console.log('worker started');
         let i = 0;
         while (true) {
-            const res = await this.consumeQueue();
-            const [ _, msg ] = res;
-            const parsedMsg = JSON.parse(msg);
-            const {check_id, entity, command} = parsedMsg.body.args[0];
-            const alertList = parsedMsg.body.args[1];
-
-            const checkResult = this.executeZmonTask(command, check_id, entity);
-
-            this.storeCheckResult(check_id, entity.id, JSON.stringify(checkResult));
-
-            alertList.forEach((alert: any) => {
-                this.handleAlerts(alert, checkResult, entity);
-            });
+            const res: [string, string] = await this.consumeQueue();
+            this.processMessage(res);
         }
+    }
+
+    private processMessage(res: [string, string]) {
+        const [_, msg] = res;
+        const parsedMsg = JSON.parse(msg);
+        const {check_id, entity, command} = parsedMsg.body.args[0];
+        const alertList = parsedMsg.body.args[1];
+
+        const checkResult = this.executeZmonTask(command, check_id, entity);
+        this.executedChecks++;
+
+        this.storeCheckResult(check_id, entity.id, JSON.stringify(checkResult));
+
+        alertList.forEach((alert: any) => {
+            this.handleAlerts(alert, checkResult, entity);
+        });
     }
 
     private handleAlerts(alert: any, checkResult: any, entity: any) {
@@ -71,8 +78,8 @@ export default class ZmonWorker {
         }
     }
 
-    private async consumeQueue() {
-        return await this.redisService.getTask(this.queueName);
+    private consumeQueue() {
+        return this.redisService.getTask(this.queueName);
     }
 
     private executeZmonTask(checkScript: string, checkId: string, entity: any): any {
