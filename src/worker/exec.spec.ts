@@ -93,10 +93,11 @@ describe('Worker', () => {
 
 
     it('should fail making an http request', () => {
-        const ctx = {}
+        const ctx = {};
         let res;
         try {
-            res = execZmonScript(ctx, check, {entity});
+            const { result } = execZmonScript(ctx, check, {entity});
+            res = result;
         } catch (e) {}
 
         expect(res).toBeUndefined();

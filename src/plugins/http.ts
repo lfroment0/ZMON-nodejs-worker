@@ -1,5 +1,9 @@
-import fetch from 'node-fetch';
+import fetch, { Response } from 'node-fetch';
 
-export async function http(url: string, Oauth?: boolean) {
-    return await fetch(url).then((res: any) => res.json());
+export async function http(url: string, Oauth?: boolean): Promise<any> {
+    if (!url) {
+        console.error(`${url} is no valid url`)
+    }
+    const res = await fetch(url).catch(err => err);
+    return res;
 }

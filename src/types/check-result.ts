@@ -1,4 +1,4 @@
-export interface CheckResult {
+export default interface CheckResult {
     time: Date;
     execDuration: number;
     checkId: number;

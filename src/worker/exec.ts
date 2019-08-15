@@ -1,5 +1,5 @@
 import { Context, createContext, CreateContextOptions, runInNewContext, RunningScriptOptions } from 'vm';
-import { performance } from 'perf_hooks';
+import log from '../log/log';
 
 const opt: CreateContextOptions = {
     name: 'checkId: xxx',
@@ -8,21 +8,27 @@ const opt: CreateContextOptions = {
     },
 };
 
-export function execZmonScript(ctx: Context, script: string, additionalCtx: {value: any} | {entity: Object}) {
+export async function execZmonScript(ctx: Context, script: string, additionalCtx: {value: any} | {entity: Object}) {
     const scriptToExec = `(${script})();`
 
     const localCtx = {...ctx, ...additionalCtx};
     const newCtx = createContext(localCtx, opt);
 
     const t0 = Date.now();
+    let result: any;
 
-    const result = runInNewContext(scriptToExec, newCtx);
+    try {
+        result = runInNewContext(scriptToExec, newCtx);
+    } catch (e) {
+        result = e;
+    }
 
     const t1 = Date.now();
 
     return {
         td: t1 - t0,
-        result,
+        result: await result,
+        execTime: Date.now() / 1000
     };
 }
 

@@ -1,7 +1,11 @@
 import App from './app/app';
+import log from './log/log';
+import { http } from './plugins/http';
 
-function main() {
+async function main() {
     const app = new App();
+
+    log.info('App Started');
     app.run();
 }
 

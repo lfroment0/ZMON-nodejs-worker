@@ -10,12 +10,13 @@ export default class App {
 
     constructor() {
         this.redisService = new RedisService();
-        this.server = new ApiServer(this.redisService);
         this.zmonWorker = new ZmonWorker(this.redisService, config.defaultQueue);
+        this.server = new ApiServer(this.zmonWorker, this.redisService);
     }
 
     run() {
-        this.server.startServer();
+        const port = 3000;
+        this.server.startServer(port);
         this.zmonWorker.startWorker();
     }
 }
