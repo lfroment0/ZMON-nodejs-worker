@@ -24,7 +24,7 @@
     "@types/redis": "^2.8.13",
     "@types/request": "^2.48.2",
     "express": "^4.17.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^3.1.1",
     "redis": "^2.8.0",
     "request": "^2.88.0",
     "request-promise": "^4.2.4",
